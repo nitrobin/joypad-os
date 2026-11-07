@@ -906,6 +906,7 @@ void usbd_task(void)
             // Switch mode: process CDC tasks, delegate to mode interface
             cdc_task();
             const usbd_mode_t* mode = usbd_modes[USB_OUTPUT_MODE_SWITCH];
+            if (mode && mode->task) mode->task();
             if (mode && mode->is_ready && mode->is_ready()) {
                 usbd_send_report(0);
             }
@@ -1607,6 +1608,10 @@ static bool usbd_get_feedback(output_feedback_t* fb)
     fb->dirty = false;
 
     switch (output_mode) {
+        case USB_OUTPUT_MODE_SWITCH: {
+            const usbd_mode_t* mode = usbd_modes[USB_OUTPUT_MODE_SWITCH];
+            return mode && mode->get_feedback && mode->get_feedback(fb);
+        }
         case USB_OUTPUT_MODE_XBOX_ORIGINAL: {
             // XID: delegate to mode interface
             const usbd_mode_t* mode = usbd_modes[USB_OUTPUT_MODE_XBOX_ORIGINAL];
@@ -2338,6 +2343,11 @@ uint8_t const *tud_hid_descriptor_report_cb(uint8_t itf)
 
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t *buffer, uint16_t reqlen)
 {
+    if (output_mode == USB_OUTPUT_MODE_SWITCH) {
+        const usbd_mode_t* mode = usbd_modes[USB_OUTPUT_MODE_SWITCH];
+        return mode && mode->get_report ?
+            mode->get_report(report_id, report_type, buffer, reqlen) : 0;
+    }
     // SInput/KB/Mouse composite: route by interface
     if ((output_mode == USB_OUTPUT_MODE_SINPUT ||
          output_mode == USB_OUTPUT_MODE_KEYBOARD_MOUSE) &&
@@ -2404,6 +2414,14 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
     // NOTE: no per-call logging here. This runs on every host SET_REPORT, and a
     // host that streams output reports (e.g. macOS/PS5 pushing DualSense LED/haptics)
     // would turn a blocking UART printf into a Core0-starving storm → USB timeouts.
+
+    if (output_mode == USB_OUTPUT_MODE_SWITCH) {
+        const usbd_mode_t* mode = usbd_modes[USB_OUTPUT_MODE_SWITCH];
+        if (report_type == HID_REPORT_TYPE_OUTPUT && mode && mode->handle_output) {
+            mode->handle_output(report_id, buffer, bufsize);
+        }
+        return;
+    }
 
     // SInput/KB/Mouse composite: route by interface
     if (output_mode == USB_OUTPUT_MODE_SINPUT ||

@@ -49,10 +49,18 @@ No PIO state machines or overclock required. The adapter enumerates as a composi
 | XInput | L+R | 1-4 | -- | -- | XSM3 (Xbox 360) |
 | PS3 | L+R | 1-7 | -- | Gyro/Accel | -- |
 | PS4 | L+R | -- | Lightbar | -- | Passthrough |
-| Switch | L+R | 1-7 | -- | -- | -- |
+| Switch | L+R | 1-4 | -- | Gyro/Accel | -- |
 | KB/Mouse | -- | -- | -- | -- | -- |
 
 Feedback (rumble, LED, RGB) is forwarded back to the connected input controller via the player manager.
+
+The Switch mode enumerates as a wired Nintendo Pro Controller. It answers the
+USB handshake and subcommands, sends full `0x30` reports with three IMU samples,
+and forwards rumble and player lights to the paired controller. Motion requires
+an input controller that supplies gyro and accelerometer data, such as a
+DualShock 4 or DualSense. Switch 1 cannot be woken from sleep through a wired
+USB controller; connect it to a powered dock and enable wired Pro Controller
+communication in the console settings.
 
 ### SInput (Default)
 
